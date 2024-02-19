@@ -5,12 +5,15 @@ from gensim.models import TfidfModel
 from gensim.corpora import Dictionary
 from gensim.similarities import SparseMatrixSimilarity
 from pinecone import Pinecone
+import sys
 
+
+nltk.download('punkt')
 # Function to read PDF document and extract paragraphs
 def read_pdf(file_path):
     paragraphs = []
     with open(file_path, 'rb') as file:
-        reader = PyPDF2.PdfFileReader(file)
+        reader = PyPDF2.PdfReader(file)
         for page_num in range(len(reader.pages)):
             page_text = reader.pages[page_num].extract_text()
             paragraphs.extend(page_text.split('\n\n'))  # Split by double newline for paragraphs
@@ -65,9 +68,16 @@ def main(file_path):
     # Create embeddings and index for semantic similarity search
     dictionary, tfidf, index = create_embeddings(tokenized_paragraphs)
     # Connect to Pinecone vector database
-    pinecone = Pinecone()
+    pinecone = Pinecone(api_key='5830a444-8928-4068-969b-f72f7e403508')
     # Create or retrieve Pinecone index
-    pinecone.create_index('document_index', if_exists='fail')
+    pinecone.create_index('document_index',dimension=300,spec={
+    "method": "hnsw",
+    "parameters": {
+        "M": 16,
+        "ef_construction": 100,
+        "ef_search": 128
+    }
+})
     pinecone_index = pinecone.index('document_index')
     # Insert paragraphs into Pinecone index
     pinecone_index.upsert(ids=range(len(paragraphs)), vectors=tfidf[corpus])
